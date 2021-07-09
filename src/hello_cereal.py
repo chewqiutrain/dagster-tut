@@ -4,14 +4,15 @@ from dagster import pipeline, solid, execute_pipeline
 
 
 @solid
-def hello_cereal(context):
+def download_cereals():
     response = requests.get("https://docs.dagster.io/assets/cereal.csv")
     lines = response.text.split("\n")
-    cereals = [row for row in csv.DictReader(lines)]
-    context.log.info(f"Found {len(cereals)} cereals")
+    return [row for row in csv.DictReader(lines)]
 
-    return cereals
-
+@solid
+def find_sugariest(context, cereals):
+    sorted_by_sugar = sorted(cereals, key=lambda cereal: cereal["sugars"])
+    context.log.info(f"{sorted_by_sugar[-1]['name']} is the sugariest cereal")
 
 """
 This call doesn't actually execute the solid. 
@@ -19,10 +20,9 @@ Within the bodies of functions decorated with @pipeline, we use function calls t
 indicate the dependency structure of the solids making up the pipeline. 
 """
 @pipeline
-def hello_cereal_pipeline():
-    hello_cereal()
-
+def serial_pipeline():
+    find_sugariest(download_cereals())
 
 
 if __name__ == "__main__":
-    result = execute_pipeline(hello_cereal_pipeline)
+    result = execute_pipeline(serial_pipeline)
